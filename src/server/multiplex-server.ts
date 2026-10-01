@@ -49,6 +49,7 @@ interface Connection<TContext> {
   /** Host of the request that opened the connection; updates from other hosts do not see it. */
   readonly host: string
   readonly stream: ReadableStream<Uint8Array>
+  readonly closed: AbortSignal
   start: (request: SubscriptionRequest, ctx: TContext, req: Request) => Promise<void>
   stop: (id: string) => void
   close: () => void
@@ -138,6 +139,11 @@ export function createMultiplexServer<TRouter extends AnyTRPCRouter>(
     }
 
     async function start(request: SubscriptionRequest, ctx: TContext, req: Request) {
+      // The connection may close while the request that adds the subscription creates its context.
+      if (closed.signal.aborted) {
+        return
+      }
+
       // A repeated id replaces the subscription, e.g. after a retryable error.
       stop(request.id)
 
@@ -252,7 +258,7 @@ export function createMultiplexServer<TRouter extends AnyTRPCRouter>(
       }
     }
 
-    return { id, host, stream, start, stop, close }
+    return { id, host, stream, closed: closed.signal, start, stop, close }
   }
 
   async function handle({ req, createContext }: MultiplexHandleOptions<TRouter>) {
@@ -285,6 +291,10 @@ export function createMultiplexServer<TRouter extends AnyTRPCRouter>(
 
       if (request.add.length) {
         const ctx = await createContext()
+        if (connection.closed.aborted) {
+          return new Response(null, { status: UNKNOWN_CONNECTION_STATUS })
+        }
+
         await waitForStart(
           request.add.map(subscription => connection.start(subscription, ctx, req)),
         )
@@ -294,6 +304,11 @@ export function createMultiplexServer<TRouter extends AnyTRPCRouter>(
     }
 
     const ctx = await createContext()
+    // A client that gave up while the context was being created will not read the stream.
+    if (req.signal.aborted) {
+      return new Response(null, { status: 499 })
+    }
+
     const connection = createConnection(host)
     connections.set(connection.id, connection)
     req.signal.addEventListener("abort", () => connection.close(), { once: true })

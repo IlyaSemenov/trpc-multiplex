@@ -83,6 +83,13 @@ function createRouter(opts: { reconnectAfterInactivityMs?: number } = {}) {
       throw new TRPCError({ code: "UNAUTHORIZED" })
     }),
 
+    /** Reports its start, so a test can tell that the server ran it. */
+    announced: t.procedure.subscription(async function* ({ ctx, signal }) {
+      emitter(ctx).emit("announced")
+      await new Promise(resolve => signal?.addEventListener("abort", resolve))
+      yield "never"
+    }),
+
     cleanup: t.procedure.subscription(async function* ({ ctx, signal }) {
       try {
         yield "ready"
@@ -109,6 +116,8 @@ function serve(
     startTimeoutMs?: number
     /** Number of first `open` requests to reject as an unavailable server would. */
     rejectedOpens?: number
+    /** Delay of every `createContext`, e.g. to let the client time out meanwhile. */
+    contextDelayMs?: number
   } = {},
 ): Harness {
   const events = new EventEmitter()
@@ -135,6 +144,9 @@ function serve(
       const response = await target.handle({
         req,
         createContext: async () => {
+          if (opts.contextDelayMs) {
+            await Bun.sleep(opts.contextDelayMs)
+          }
           const ctx = { user }
           emitters.set(ctx, events)
           return ctx
@@ -613,4 +625,24 @@ test("grows the reconnect delay on consecutive failures and resets it after conn
 
   await until(() => started === 2)
   expect(attempts).toEqual([0, 1, 0])
+})
+
+test("does not start subscriptions of a client that gave up while the context was created", async () => {
+  const harness = serve(createRouter(), { contextDelayMs: 100 })
+  let announced = false
+  harness.emitter.once("announced", () => (announced = true))
+
+  await fetch(harness.url, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      type: "open",
+      subscriptions: [{ id: "gone", path: "announced", input: undefined }],
+    }),
+    signal: AbortSignal.timeout(20),
+  }).catch(() => {})
+  await Bun.sleep(150)
+
+  expect(announced).toBe(false)
+  expect(harness.active()).toBe(0)
 })
