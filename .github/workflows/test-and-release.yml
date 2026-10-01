@@ -1,0 +1,74 @@
+name: Test and Release
+
+env:
+  # Keep in sync with .changeset/config.json:baseBranch
+  MAIN_REF: refs/heads/main
+
+on:
+  push:
+    branches: ["**"]
+
+concurrency: ${{ github.workflow }}-${{ github.ref }}
+
+# Publish to npm with OIDC
+permissions:
+  contents: write
+  pull-requests: write
+  id-token: write
+
+jobs:
+  test-and-release:
+    name: Test and Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup mise
+        uses: jdx/mise-action@v4
+        with:
+          version: 2026.7.15
+
+      # for npx publish
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          # Creates .npmrc to use NODE_AUTH_TOKEN for the first publish.
+          registry-url: https://registry.npmjs.org
+
+      - name: Install deps
+        run: bun install --frozen-lockfile
+
+      - name: Build package
+        run: bun run build
+
+      - name: Typecheck package
+        run: bun run types
+
+      - name: Test package
+        run: bun run test
+
+      - name: Capture release version
+        if: ${{ github.ref == env.MAIN_REF }}
+        run: |
+          npx @changesets/cli status --output=release.json
+          RELEASE_VERSION="$(jq -r '.releases[0].newVersion // empty' release.json)"
+          if [ -z "$RELEASE_VERSION" ]; then
+            RELEASE_VERSION="$(jq -r '.version' package.json)"
+          fi
+          echo "RELEASE=Version $RELEASE_VERSION" >> "$GITHUB_ENV"
+          rm release.json
+
+      - name: Create Release Pull Request or Publish to npm
+        if: ${{ github.ref == env.MAIN_REF }}
+        uses: changesets/action@v2.1.2
+        with:
+          publish-script: npx changeset publish
+          pr-title: ${{ env.RELEASE }}
+          commit-message: ${{ env.RELEASE }}
+
+        # Bootstrap only. Remove after configuring Trusted Publishing.
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

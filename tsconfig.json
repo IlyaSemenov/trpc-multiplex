@@ -1,0 +1,7 @@
+{
+  "extends": "@tsconfig/bun",
+  "compilerOptions": {
+    "types": ["bun"]
+  },
+  "include": ["src/**/*.ts", "*.ts"]
+}

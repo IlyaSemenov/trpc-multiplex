@@ -1,0 +1,62 @@
+{
+  "name": "trpc-multiplex",
+  "version": "0.0.0",
+  "description": "Multiplex multiple tRPC subscriptions over a single HTTP stream",
+  "keywords": [
+    "multiplex",
+    "server-sent-events",
+    "sse",
+    "subscriptions",
+    "trpc"
+  ],
+  "homepage": "https://github.com/IlyaSemenov/trpc-multiplex#readme",
+  "bugs": "https://github.com/IlyaSemenov/trpc-multiplex/issues",
+  "license": "MIT",
+  "author": "Ilya Semenov",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/IlyaSemenov/trpc-multiplex.git"
+  },
+  "files": [
+    "README.md",
+    "dist"
+  ],
+  "type": "module",
+  "exports": {
+    "./client": "./dist/client.mjs",
+    "./server": "./dist/server.mjs",
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsdown",
+    "prepare": "lefthook install",
+    "types": "tsc",
+    "test": "bun test",
+    "prepublishOnly": "bun run build",
+    "lint": "oxlint --fix && oxfmt",
+    "lint:check": "oxlint && oxfmt --check"
+  },
+  "devDependencies": {
+    "@arethetypeswrong/core": "^0.18.5",
+    "@changesets/cli": "^3.0.3",
+    "@ilyasemenov/oxc-config": "^0.1.1",
+    "@trpc/client": "^11.19.0",
+    "@trpc/server": "^11.19.0",
+    "@tsconfig/bun": "^1.0.10",
+    "@types/bun": "^1.4.0",
+    "oxfmt": "^0.71.0",
+    "oxlint": "^1.86.0",
+    "publint": "^0.3.22",
+    "tsdown": "^0.22.14",
+    "typescript": "^7.0.2"
+  },
+  "peerDependencies": {
+    "@trpc/client": "^11.18.0",
+    "@trpc/server": "^11.18.0"
+  },
+  "packageManager": "bun@1.4.0"
+}
