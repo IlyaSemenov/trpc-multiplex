@@ -68,7 +68,3 @@ jobs:
           publish-script: npx changeset publish
           pr-title: ${{ env.RELEASE }}
           commit-message: ${{ env.RELEASE }}
-
-        # Bootstrap only. Remove after configuring Trusted Publishing.
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
