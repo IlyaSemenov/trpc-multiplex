@@ -101,7 +101,7 @@ const subscriptionLink = multiplexLink({
 
 ### Fallback
 
-The link silently runs the subscriptions in the tab when the browser has no `SharedWorker` (e.g. Chrome on Android) or no Web Locks, when creating the worker throws, when the worker script fails to load, or when the worker does not accept the tab within `workerTimeoutMs`.
+The link silently runs the subscriptions in the tab when the browser has no `SharedWorker` (e.g. Chrome on Android) or no Web Locks, when creating the worker throws, when the worker script fails to load, when the worker does not accept the tab within `workerTimeoutMs`, or when the worker has died 3 times.
 Subscriptions move to the tab with their last `tracked()` event ids, so they resume.
 The client keeps running its subscriptions in the tab and does not try the worker again.
 
@@ -110,7 +110,7 @@ The client keeps running its subscriptions in the tab and does not try the worke
 - A closed or crashed tab releases a Web Lock that the worker waits for, and the worker stops the tab's subscriptions.
 - A page that enters the back/forward cache or is frozen leaves the worker and stops its subscriptions; when the page is shown again, it rejoins and resumes `tracked()` subscriptions.
 - A client with no subscriptions left leaves the worker; its next subscription joins it again.
-- When the worker dies, its tabs start a new one and move their subscriptions there.
+- When the worker dies, its tabs start a new one and move their subscriptions there; after the worker died 3 times, a tab runs its subscriptions itself.
 - A tab whose JavaScript hangs is not detected: its subscriptions keep running until the tab is closed.
 - The stream is shared by the tabs that share a worker: tabs of different releases with incompatible worker protocols, tabs in different storage partitions, and tabs that fell back each use their own stream.
 

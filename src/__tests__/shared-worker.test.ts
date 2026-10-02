@@ -261,6 +261,27 @@ describe("multiplexLink with a worker", () => {
     expect(received).toEqual([null, "event-1", "event-1"])
   })
 
+  test("runs the subscriptions in the tab after the worker died 3 times", async () => {
+    const server = startServer(createRouter())
+    const worker = createWorker(server)
+    const { client } = openTab(server, worker.factory)
+    const received: unknown[] = []
+
+    const subscription = client.tracked.subscribe({}, { onData: ({ data }) => received.push(data) })
+    cleanups.push(() => subscription.unsubscribe())
+    await until(() => received.length === 1)
+
+    for (let deaths = 1; deaths <= 3; deaths++) {
+      worker.die()
+      await until(() => received.length === deaths + 1)
+      expect(locks.heldNames(TAB_LOCK)).toHaveLength(1)
+    }
+
+    worker.die()
+    await until(() => received.length === 5)
+    expect(locks.heldNames(TAB_LOCK)).toEqual([])
+  })
+
   test.each([
     {
       lifecycle: "frozen",

@@ -21,6 +21,9 @@ import { readRestartId } from "./restart"
 
 export type TabClientOptions = MultiplexLinkOptions<AnyClientTypes>
 
+/** How many times a tab starts a new worker after the previous one died before it runs its subscriptions itself. */
+const MAX_WORKER_RESTARTS = 3
+
 type AnyClientError = TRPCClientError<any>
 type ConnectionState = TRPCConnectionState<AnyClientError>
 type SubscriptionObserver = Observer<
@@ -59,6 +62,7 @@ export function createTabClient(opts: TabClientOptions) {
   let transport: Transport | undefined
   let mode: "idle" | "worker" | "local" = "idle"
   let workerFailed = false
+  let workerRestarts = 0
   let suspended = false
   let closeSession: (() => void) | undefined
   let stopLifecycle: (() => void) | undefined
@@ -255,7 +259,14 @@ export function createTabClient(opts: TabClientOptions) {
           // Granted only once the worker is gone: start over with a new one.
           navigator.locks
             .request(data.lock, { signal: watch.signal }, () => {
-              if (!closed) {
+              if (closed) {
+                return
+              }
+
+              // A worker the browser keeps killing, e.g. for memory, would otherwise be started again in a loop.
+              if (++workerRestarts > MAX_WORKER_RESTARTS) {
+                useLocal()
+              } else {
                 detach()
                 connectWorker()
               }
