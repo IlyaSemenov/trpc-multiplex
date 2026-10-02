@@ -5,6 +5,7 @@
   "keywords": [
     "multiplex",
     "server-sent-events",
+    "shared-worker",
     "sse",
     "subscriptions",
     "trpc"
@@ -25,6 +26,7 @@
   "exports": {
     "./client": "./dist/client.mjs",
     "./server": "./dist/server.mjs",
+    "./worker": "./dist/worker.mjs",
     "./package.json": "./package.json"
   },
   "publishConfig": {
@@ -34,16 +36,21 @@
   "scripts": {
     "build": "tsdown",
     "prepare": "lefthook install",
-    "types": "tsc",
+    "types": "tsc && tsc -p tests/tsconfig.json && tsc -p e2e/tsconfig.json",
     "test": "bun test",
     "prepublishOnly": "bun run build",
     "lint": "oxlint --fix && oxfmt",
-    "lint:check": "oxlint && oxfmt --check"
+    "lint:check": "oxlint && oxfmt --check",
+    "test:e2e": "bun run build && vite build --config e2e/app/vite.config.ts && playwright test"
+  },
+  "dependencies": {
+    "valibot": "^1.0.0"
   },
   "devDependencies": {
     "@arethetypeswrong/core": "^0.18.5",
     "@changesets/cli": "^3.0.3",
     "@ilyasemenov/oxc-config": "^0.1.1",
+    "@playwright/test": "^1.63.0",
     "@trpc/client": "^11.19.0",
     "@trpc/server": "^11.19.0",
     "@tsconfig/bun": "^1.0.10",
@@ -51,8 +58,10 @@
     "oxfmt": "^0.71.0",
     "oxlint": "^1.86.0",
     "publint": "^0.3.22",
+    "superjson": "^2.2.6",
     "tsdown": "^0.22.14",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "vite": "^8.3.2"
   },
   "peerDependencies": {
     "@trpc/client": "^11.18.0",

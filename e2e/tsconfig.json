@@ -1,0 +1,10 @@
+{
+  "extends": "../tsconfig",
+  "compilerOptions": {
+    // Repeated because Bun does not inherit `paths` from the extended config.
+    "paths": {
+      "trpc-multiplex/*": ["../src/*"]
+    }
+  },
+  "include": ["**/*.ts"]
+}

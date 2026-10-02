@@ -12,12 +12,22 @@ Do not catalog files or restate information evident from their names and locatio
 ## Scope
 
 - Keep production code in `src/`.
-- Keep focused module tests beside their source as `*.test.ts`.
-- Keep tests that span several modules and use internals, such as the wire protocol, in `src/__tests__/` with relative imports.
-- Keep integration, package-boundary, and type-inference tests in `tests/`, importing the package only through public entry points mapped by `tests/tsconfig.json` paths.
+- Test behavior through the public entry points whenever possible: keep such integration, package-boundary, and type-inference tests in `tests/`, importing the package by name as mapped by `tsconfig.json` paths.
+- Keep tests that need internals of one module, such as the wire protocol of the server, beside their source as `*.test.ts`.
+- Keep tests that span several modules and use internals in `src/__tests__/` with relative imports.
+- Reuse the test server and router of `tests/harness.ts` in tests under `src/` instead of duplicating them.
 - Name compile-only tests `*.type-test.ts`.
-- Keep `src/client/index.ts` and `src/server/index.ts` limited to explicit public exports.
+- Keep `src/client/index.ts`, `src/server/index.ts`, and `src/worker/index.ts` limited to explicit public exports.
+- Keep browser tests in `e2e/` as `*.e2e.ts`; they run the built package in a Vite app, in both the dev server and the production build.
 - Treat `package.json` exports and supported runtimes as public contracts.
+
+## Architecture
+
+- Keep the multiplexer in `src/client/multiplexer.ts` free of the transformer: it runs in the shared worker, so inputs, data, and error shapes stay serialized, and the tab adapter serializes and deserializes them.
+- Keep every subscription and its last event id in the tab adapter, so the tab can replay them into another transport.
+- Bump `WORKER_PROTOCOL_VERSION` on any incompatible change of the messages between tabs and the worker.
+- Keep the server accepting clients of the previous release: tabs opened before a deploy keep running the old client.
+- Keep the restart channel name and its message unchanged across versions: restarts must reach workers and tabs of every release.
 
 ## Documentation
 
@@ -66,3 +76,4 @@ Describe the user-visible change.
 - Run the `types` script when public types or TypeScript configuration change.
 - Run the `test` script when behavior changes.
 - Run the `build` script when package exports, declarations, or supported runtimes change.
+- Run the `test:e2e` script when the shared worker, the tab lifecycle, or the worker bundling contract changes.

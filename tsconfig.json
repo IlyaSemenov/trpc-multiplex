@@ -1,7 +1,12 @@
 {
   "extends": "@tsconfig/bun",
   "compilerOptions": {
-    "types": ["bun"]
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    "types": ["bun"],
+    // Tests import the package by name, including the ones in `src` that share the `tests` harness.
+    "paths": {
+      "trpc-multiplex/*": ["./src/*"]
+    }
   },
   "include": ["src/**/*.ts", "*.ts"]
 }

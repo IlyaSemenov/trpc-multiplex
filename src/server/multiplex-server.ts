@@ -9,7 +9,9 @@ import {
 import { isObservable, observableToAsyncIterable } from "@trpc/server/observable"
 
 import type { MultiplexMessage, SubscriptionRequest } from "../protocol"
-import { encodeMessage, parseRequest, UNKNOWN_CONNECTION_STATUS } from "../protocol"
+import { encodeMessage, UNKNOWN_CONNECTION_STATUS } from "../protocol"
+
+import { parseRequest } from "./request"
 
 export interface MultiplexServerOptions<TRouter extends AnyTRPCRouter> {
   router: TRouter
@@ -170,11 +172,19 @@ export function createMultiplexServer<TRouter extends AnyTRPCRouter>(
           path: request.path,
           type: "subscription",
         })
-        send({ type: "error", id: request.id, error: config.transformer.output.serialize(shape) })
+        send({
+          type: "error",
+          id: request.id,
+          error: config.transformer.output.serialize(shape),
+          code: shape.code,
+        })
       }
 
       try {
-        input = config.transformer.input.deserialize(request.input)
+        input = inputWithLastEventId(
+          config.transformer.input.deserialize(request.input),
+          request.lastEventId,
+        )
         const result: unknown = await callTRPCProcedure({
           router,
           path: request.path,
@@ -355,6 +365,15 @@ async function nextOrAbort<T>(iterator: AsyncIterator<T>, signal: AbortSignal) {
       .then(resolve, reject)
       .finally(() => signal.removeEventListener("abort", onAbort))
   })
+}
+
+/** Pass the last `tracked()` event id to the procedure the same way tRPC does for `httpSubscriptionLink`. */
+function inputWithLastEventId(input: unknown, lastEventId: string | undefined) {
+  if (!lastEventId || (input != null && typeof input !== "object")) {
+    return input
+  }
+
+  return { ...(input as object | null | undefined), lastEventId }
 }
 
 function isAsyncIterable(value: unknown): value is AsyncIterable<unknown> {

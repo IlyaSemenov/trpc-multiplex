@@ -50,6 +50,12 @@ jobs:
       - name: Test package
         run: bun run test
 
+      - name: Install browsers
+        run: bun run playwright install --with-deps chromium firefox webkit
+
+      - name: Test package in browsers
+        run: bun run test:e2e
+
       - name: Capture release version
         if: ${{ github.ref == env.MAIN_REF }}
         run: |

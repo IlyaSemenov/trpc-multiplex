@@ -3,8 +3,13 @@ export interface SubscriptionRequest {
   /** Client-assigned id, unique within the connection. */
   id: string
   path: string
-  /** Input serialized by the client transformer. */
-  input: unknown
+  /** Input serialized by the client transformer; absent for a procedure called without input. */
+  input?: unknown
+  /**
+   * Id of the last `tracked()` event the client received.
+   * The server adds it to the deserialized input, so a client does not need the transformer to resume.
+   */
+  lastEventId?: string
 }
 
 /**
@@ -24,7 +29,8 @@ export type MultiplexMessage =
   | { type: "ping" }
   | { type: "started"; id: string }
   | { type: "data"; id: string; data: unknown; eventId?: string }
-  | { type: "error"; id: string; error: unknown }
+  /** `error` is the error shape serialized by the transformer; `code` is its JSON-RPC code, readable without the transformer. */
+  | { type: "error"; id: string; error: unknown; code: number }
   | { type: "stopped"; id: string }
 
 /** Status of an `update` request for a connection the server does not hold, e.g. one opened on another instance. */
@@ -70,39 +76,4 @@ export async function* decodeMessages(
   } finally {
     reader.releaseLock()
   }
-}
-
-export function parseRequest(body: unknown): MultiplexRequest | undefined {
-  if (!isRecord(body)) {
-    return undefined
-  }
-
-  if (body.type === "open" && isSubscriptionList(body.subscriptions)) {
-    return { type: "open", subscriptions: body.subscriptions }
-  }
-
-  if (
-    body.type === "update" &&
-    typeof body.connectionId === "string" &&
-    isSubscriptionList(body.add) &&
-    Array.isArray(body.remove) &&
-    body.remove.every(id => typeof id === "string")
-  ) {
-    return { type: "update", connectionId: body.connectionId, add: body.add, remove: body.remove }
-  }
-
-  return undefined
-}
-
-function isSubscriptionList(value: unknown): value is SubscriptionRequest[] {
-  return (
-    Array.isArray(value) &&
-    value.every(
-      item => isRecord(item) && typeof item.id === "string" && typeof item.path === "string",
-    )
-  )
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null
 }
