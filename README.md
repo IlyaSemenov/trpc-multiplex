@@ -1,6 +1,6 @@
 # trpc-multiplex
 
-Multiplex multiple tRPC subscriptions over a single HTTP stream.
+Run many tRPC subscriptions over one HTTP stream per tab, or per browser through a shared worker.
 
 tRPC runs subscriptions over HTTP with its built-in `httpSubscriptionLink`, which opens a separate `EventSource` per subscription.
 Behind an HTTP/1.1 proxy, a browser keeps at most 6 connections per domain across all tabs, so a few tabs with a few subscriptions each exhaust the limit and the site stops loading.

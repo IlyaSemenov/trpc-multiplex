@@ -1,7 +1,7 @@
 {
   "name": "trpc-multiplex",
   "version": "0.3.0",
-  "description": "Multiplex multiple tRPC subscriptions over a single HTTP stream",
+  "description": "Run many tRPC subscriptions over one HTTP stream per tab, or per browser through a shared worker",
   "keywords": [
     "multiplex",
     "server-sent-events",
