@@ -1,5 +1,6 @@
-import { afterEach, expect, test } from "bun:test"
+import { afterEach, describe, expect, test } from "bun:test"
 
+import { TRPCError } from "@trpc/server"
 import { createMultiplexServer } from "trpc-multiplex/server"
 
 import { cleanups, connect, createRouter, startServer, until } from "./harness"
@@ -179,6 +180,57 @@ test("fails only the subscription whose procedure throws a non-retryable error",
 
   expect(error).toMatchObject({ data: { code: "UNAUTHORIZED" } })
   expect(received).toEqual([{ user: "alice", payload: 1 }])
+})
+
+describe("failing createContext", () => {
+  test("restarts the added subscription without reopening the stream", async () => {
+    const errors: unknown[] = []
+    const server = startServer(createRouter(), { onError: opts => errors.push(opts) })
+    const client = connect(server)
+    const received: unknown[] = []
+    let healthyStarted = false
+    let addedStarted = false
+
+    const healthy = client.events.subscribe(
+      { topic: "a" },
+      { onStarted: () => (healthyStarted = true) },
+    )
+    cleanups.push(() => healthy.unsubscribe())
+    await until(() => healthyStarted)
+
+    server.failNextContext(new Error("Database is unavailable"))
+    const added = client.events.subscribe(
+      { topic: "b" },
+      {
+        onStarted: () => (addedStarted = true),
+        onData: data => received.push(data),
+      },
+    )
+    cleanups.push(() => added.unsubscribe())
+    await until(() => addedStarted)
+
+    server.emitter.emit("b", 1)
+    await until(() => received.length === 1)
+
+    expect(received).toEqual([{ user: "alice", payload: 1 }])
+    expect(errors).toMatchObject([
+      { error: { code: "INTERNAL_SERVER_ERROR" }, path: "events", ctx: undefined },
+    ])
+    expect(server.openedStreams()).toBe(1)
+  })
+
+  test("fails the subscriptions of the request with its error", async () => {
+    const server = startServer(createRouter())
+    const client = connect(server)
+    let error: unknown
+
+    server.failNextContext(new TRPCError({ code: "UNAUTHORIZED" }))
+    client.events.subscribe({ topic: "a" }, { onError: cause => (error = cause) })
+
+    await until(() => error !== undefined)
+    expect(error).toMatchObject({ data: { code: "UNAUTHORIZED" } })
+    expect(server.openedStreams()).toBe(1)
+  })
 })
 
 test("reopens the stream when an update reaches a server that does not hold it", async () => {

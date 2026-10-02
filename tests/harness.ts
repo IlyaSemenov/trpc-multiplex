@@ -3,6 +3,7 @@ import { EventEmitter, on } from "node:events"
 import { createTRPCClient } from "@trpc/client"
 import { initTRPC, tracked, TRPCError } from "@trpc/server"
 import { multiplexLink } from "trpc-multiplex/client"
+import type { MultiplexServerOptions } from "trpc-multiplex/server"
 import { createMultiplexServer } from "trpc-multiplex/server"
 
 /** Context of the test router: the user of the request that started the subscription. */
@@ -27,6 +28,8 @@ export interface TestServer {
   activeStreams: () => number
   /** Change the user of the context created for the following requests, as a login would. */
   setUser: (user: string) => void
+  /** Make the next `createContext` throw the error. */
+  failNextContext: (error: unknown) => void
   /** End all open streams as a server restart would. */
   dropStreams: () => void
 }
@@ -126,12 +129,18 @@ export function startServer(
     contextDelayMs?: number
     /** Delay of the response to the first `update` request, after the server has applied it. */
     firstUpdateDelayMs?: number
+    onError?: MultiplexServerOptions<Router>["onError"]
   } = {},
 ): TestServer {
   const events = new EventEmitter()
-  const multiplex = createMultiplexServer({ router, startTimeoutMs: opts.startTimeoutMs })
+  const multiplex = createMultiplexServer({
+    router,
+    startTimeoutMs: opts.startTimeoutMs,
+    onError: opts.onError,
+  })
   const streams = new Set<() => void>()
   let user = "alice"
+  let contextError: { error: unknown } | undefined
   let opened = 0
   let rejectedOpens = opts.rejectedOpens ?? 0
   let updateDelayMs = opts.firstUpdateDelayMs ?? 0
@@ -155,6 +164,11 @@ export function startServer(
         createContext: async () => {
           if (opts.contextDelayMs) {
             await Bun.sleep(opts.contextDelayMs)
+          }
+          if (contextError) {
+            const { error } = contextError
+            contextError = undefined
+            throw error
           }
           const ctx = { user }
           emitters.set(ctx, events)
@@ -185,6 +199,9 @@ export function startServer(
     activeStreams: () => streams.size,
     setUser: value => {
       user = value
+    },
+    failNextContext: error => {
+      contextError = { error }
     },
     dropStreams: () => {
       streams.forEach(drop => drop())

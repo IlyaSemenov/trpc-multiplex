@@ -137,6 +137,7 @@ Only the server can guarantee that a session ends: `restartSubscriptions()` does
 - Each subscription starts with the context of the request that added it, so it sees the current session.
 - Subscription events, `tracked()` ids, errors, and completion follow the semantics of `httpSubscriptionLink`.
 - Retryable errors restart only the failed subscription.
+- An error thrown by `createContext` fails the subscriptions of that request, as an error of their procedures would, and the stream stays open.
 - Keepalive pings and the client inactivity timeout come from the router `sse` config (`sse.ping`, `sse.client.reconnectAfterInactivityMs`).
 - After a lost stream, the client reconnects with exponential backoff (`retryDelayMs`) and resumes `tracked()` subscriptions from their last event id.
 - Requests wait for their subscriptions to start, so cookies set by middleware reach the response, but no longer than `startTimeoutMs` (5 seconds by default).

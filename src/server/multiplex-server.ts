@@ -31,13 +31,17 @@ export interface MultiplexErrorHandlerOptions<TContext> {
   error: TRPCError
   path: string
   input: unknown
-  ctx: TContext
+  /** `undefined` when `createContext` threw. */
+  ctx: TContext | undefined
   req: Request
 }
 
 export interface MultiplexHandleOptions<TRouter extends AnyTRPCRouter> {
   req: Request
-  /** Called once per request that starts subscriptions; all of them share the context. */
+  /**
+   * Called once per request that starts subscriptions; all of them share the context.
+   * If it throws, the subscriptions of the request fail with the error, as tRPC procedures would.
+   */
   createContext: () => Promise<inferRouterContext<TRouter>>
 }
 
@@ -52,7 +56,11 @@ interface Connection<TContext> {
   readonly host: string
   readonly stream: ReadableStream<Uint8Array>
   readonly closed: AbortSignal
-  start: (request: SubscriptionRequest, ctx: TContext, req: Request) => Promise<void>
+  start: (
+    request: SubscriptionRequest,
+    context: RequestContext<TContext>,
+    req: Request,
+  ) => Promise<void>
   stop: (id: string) => void
   close: () => void
 }
@@ -65,6 +73,9 @@ const STREAM_HEADERS = {
 }
 
 const ABORTED = Symbol("aborted")
+
+/** Context created for a request, or the error `createContext` threw. */
+type RequestContext<TContext> = { ok: true; ctx: TContext } | { ok: false; cause: unknown }
 
 /**
  * Create a server that runs tRPC subscriptions of many client operations over a single HTTP stream.
@@ -140,7 +151,11 @@ export function createMultiplexServer<TRouter extends AnyTRPCRouter>(
       subscriptions.delete(subscriptionId)
     }
 
-    async function start(request: SubscriptionRequest, ctx: TContext, req: Request) {
+    async function start(
+      request: SubscriptionRequest,
+      context: RequestContext<TContext>,
+      req: Request,
+    ) {
       // The connection may close while the request that adds the subscription creates its context.
       if (closed.signal.aborted) {
         return
@@ -152,6 +167,7 @@ export function createMultiplexServer<TRouter extends AnyTRPCRouter>(
       const subscription = new AbortController()
       subscriptions.set(request.id, subscription)
       const signal = AbortSignal.any([closed.signal, subscription.signal])
+      const ctx = context.ok ? context.ctx : undefined
       let input: unknown
 
       function fail(cause: unknown) {
@@ -181,6 +197,10 @@ export function createMultiplexServer<TRouter extends AnyTRPCRouter>(
       }
 
       try {
+        if (!context.ok) {
+          throw context.cause
+        }
+
         input = inputWithLastEventId(
           config.transformer.input.deserialize(request.input),
           request.lastEventId,
@@ -300,20 +320,20 @@ export function createMultiplexServer<TRouter extends AnyTRPCRouter>(
       request.remove.forEach(id => connection.stop(id))
 
       if (request.add.length) {
-        const ctx = await createContext()
+        const context = await createRequestContext(createContext)
         if (connection.closed.aborted) {
           return new Response(null, { status: UNKNOWN_CONNECTION_STATUS })
         }
 
         await waitForStart(
-          request.add.map(subscription => connection.start(subscription, ctx, req)),
+          request.add.map(subscription => connection.start(subscription, context, req)),
         )
       }
 
       return new Response(null, { status: 204 })
     }
 
-    const ctx = await createContext()
+    const context = await createRequestContext(createContext)
     // A client that gave up while the context was being created will not read the stream.
     if (req.signal.aborted) {
       return new Response(null, { status: 499 })
@@ -325,10 +345,21 @@ export function createMultiplexServer<TRouter extends AnyTRPCRouter>(
 
     // Messages are queued in the stream until the response is read, so `started` events are not lost.
     await waitForStart(
-      request.subscriptions.map(subscription => connection.start(subscription, ctx, req)),
+      request.subscriptions.map(subscription => connection.start(subscription, context, req)),
     )
 
     return new Response(connection.stream, { headers: STREAM_HEADERS })
+  }
+
+  /** A failed context fails the subscriptions of the request instead of the request, which would cost the client its stream. */
+  async function createRequestContext(
+    createContext: () => Promise<TContext>,
+  ): Promise<RequestContext<TContext>> {
+    try {
+      return { ok: true, ctx: await createContext() }
+    } catch (cause) {
+      return { ok: false, cause }
+    }
   }
 
   async function waitForStart(starts: Promise<void>[]) {
