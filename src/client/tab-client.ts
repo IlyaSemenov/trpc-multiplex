@@ -1,7 +1,7 @@
 import type { Operation, OperationResultEnvelope } from "@trpc/client"
 import { TRPCClientError } from "@trpc/client"
 import type { TRPCConnectionState } from "@trpc/client/unstable-internals"
-import { getTransformer } from "@trpc/client/unstable-internals"
+import type { TRPCCombinedDataTransformer, TRPCDataTransformer } from "@trpc/server"
 import type { Observer } from "@trpc/server/observable"
 import type { TRPCErrorShape } from "@trpc/server/rpc"
 import type { AnyClientTypes } from "@trpc/server/unstable-core-do-not-import"
@@ -51,7 +51,7 @@ interface Entry {
  * after a suspended page resumes, after the worker dies, or when falling back to running in the tab.
  */
 export function createTabClient(opts: TabClientOptions) {
-  const transformer = getTransformer(opts.transformer)
+  const transformer = combineTransformer(opts.transformer)
   const entries = new Map<string, Entry>()
   let lastId = 0
   /** Restart the entries' last event ids belong to. */
@@ -449,4 +449,16 @@ export function createTabClient(opts: TabClientOptions) {
   }
 
   return { subscribe }
+}
+
+/** Resolve the `transformer` option the way the links of tRPC do. */
+function combineTransformer(option: TabClientOptions["transformer"]): TRPCCombinedDataTransformer {
+  // The other member of the option type is a compile-time error for a router without a transformer.
+  const transformer = option as TRPCDataTransformer | TRPCCombinedDataTransformer | undefined
+  if (!transformer) {
+    const identity: TRPCDataTransformer = { serialize: data => data, deserialize: data => data }
+    return { input: identity, output: identity }
+  }
+
+  return "input" in transformer ? transformer : { input: transformer, output: transformer }
 }

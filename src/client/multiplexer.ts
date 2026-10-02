@@ -1,7 +1,18 @@
-import { retryableRpcCodes } from "@trpc/server/unstable-core-do-not-import"
+import { TRPC_ERROR_CODES_BY_KEY } from "@trpc/server/rpc"
 
 import type { MultiplexMessage, MultiplexRequest, SubscriptionRequest } from "../protocol"
 import { decodeMessages, UNKNOWN_CONNECTION_STATUS } from "../protocol"
+
+const { BAD_GATEWAY, GATEWAY_TIMEOUT, INTERNAL_SERVER_ERROR, SERVICE_UNAVAILABLE } =
+  TRPC_ERROR_CODES_BY_KEY
+
+/** Codes of errors that restart the subscription, the same as `httpSubscriptionLink` retries. */
+const RETRYABLE_CODES: readonly number[] = [
+  BAD_GATEWAY,
+  SERVICE_UNAVAILABLE,
+  GATEWAY_TIMEOUT,
+  INTERNAL_SERVER_ERROR,
+]
 
 /** Options shared by the tab and the shared worker, e.g. through a common config module. */
 export interface MultiplexTransportOptions {
@@ -353,7 +364,7 @@ export function createMultiplexer(opts: MultiplexerOptions): Multiplexer {
         const error: SerializedError = { type: "shape", shape: message.error }
         target.sent.delete(message.id)
 
-        if ((retryableRpcCodes as readonly number[]).includes(message.code)) {
+        if (RETRYABLE_CODES.includes(message.code)) {
           subscription.listener({ type: "state", state: "connecting", error })
           subscription.retryTimer = setTimeout(
             () => {
