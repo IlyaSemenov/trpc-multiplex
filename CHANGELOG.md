@@ -1,5 +1,11 @@
 # trpc-multiplex
 
+## 0.3.1
+
+### Patch Changes
+
+- 71adc3d: Fix `DataCloneError` in the shared worker on an input that cannot be cloned, such as a Vue reactive proxy.
+
 ## 0.3.0
 
 ### Minor Changes
