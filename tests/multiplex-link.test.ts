@@ -292,6 +292,30 @@ test("reconnects after the server ends the stream and resumes tracked subscripti
   expect(server.openedStreams()).toBe(2)
 })
 
+test("reconnects with the input of the call after the caller changed it", async () => {
+  const server = startServer(createRouter())
+  const client = connect(server)
+  const input = { topic: "a" }
+  const received: unknown[] = []
+  let started = 0
+
+  const subscription = client.events.subscribe(input, {
+    onStarted: () => started++,
+    onData: data => received.push(data),
+  })
+  cleanups.push(() => subscription.unsubscribe())
+  await until(() => started === 1)
+
+  input.topic = "b"
+  server.dropStreams()
+  await until(() => started === 2)
+  server.emitter.emit("b", 2)
+  server.emitter.emit("a", 1)
+  await until(() => received.length === 1)
+
+  expect(received).toEqual([{ user: "alice", payload: 1 }])
+})
+
 test("reconnects when the stream stays silent longer than the inactivity timeout", async () => {
   const server = startServer(createRouter({ reconnectAfterInactivityMs: 50 }))
   const client = connect(server)

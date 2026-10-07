@@ -74,7 +74,7 @@ export function createTabClient(opts: TabClientOptions) {
     const entry: Entry = {
       id: String(++lastId),
       observer,
-      request: { path: op.path, input: transformer.input.serialize(op.input) },
+      request: { path: op.path, input: encodeInput(op.input) },
       state: { type: "state", state: "connecting", error: null },
       dispose: () => {
         op.signal?.removeEventListener("abort", onAbort)
@@ -446,6 +446,18 @@ export function createTabClient(opts: TabClientOptions) {
 
     entry.state = state
     entry.observer.next({ result: state })
+  }
+
+  /**
+   * Input of a subscription as the request body carries it: serialized by the transformer and copied through JSON.
+   *
+   * The copy is a snapshot of the call, so resubscriptions send the original input even after the caller changes its objects,
+   * and it is plain data the tab can post to the worker even when the input holds reactive proxies or other objects that cannot be cloned.
+   */
+  function encodeInput(input: unknown): unknown {
+    const serialized = transformer.input.serialize(input)
+    // JSON has no `undefined`, and a subscription without input keeps it absent.
+    return serialized === undefined ? undefined : JSON.parse(JSON.stringify(serialized))
   }
 
   function toClientError(error: SerializedError): AnyClientError {

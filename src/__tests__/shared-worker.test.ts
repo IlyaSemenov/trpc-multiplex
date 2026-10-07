@@ -200,6 +200,25 @@ describe("multiplexLink with a worker", () => {
     expect(server.openedStreams()).toBe(1)
   })
 
+  test("passes an input that cannot be cloned, such as a reactive proxy, to the worker", async () => {
+    const server = startServer(createRouter())
+    const worker = createWorker(server)
+    const { client } = openTab(server, worker.factory)
+    const received: unknown[] = []
+    let started = false
+
+    const subscription = client.events.subscribe(new Proxy({ topic: "a" }, {}), {
+      onStarted: () => (started = true),
+      onData: data => received.push(data),
+    })
+    cleanups.push(() => subscription.unsubscribe())
+    await until(() => started)
+    server.emitter.emit("a", 1)
+    await until(() => received.length === 1)
+
+    expect(received).toEqual([{ user: "alice", payload: 1 }])
+  })
+
   test("drops the subscriptions of a closed tab and closes the stream after the last one", async () => {
     const server = startServer(createRouter())
     const worker = createWorker(server)
