@@ -1,5 +1,15 @@
 # trpc-multiplex
 
+## 0.4.0
+
+### Minor Changes
+
+- e39e2f1: Add the `fetch` option to `multiplexLink` and `startMultiplexWorker` to send the multiplex requests through a custom `fetch`, e.g. with a cookie jar per client outside the browser.
+
+### Patch Changes
+
+- 2a46e94: Mark the package as free of side effects, so bundlers drop the modules an app does not use.
+
 ## 0.3.1
 
 ### Patch Changes
