@@ -320,7 +320,7 @@ test("reconnects when the stream stays silent longer than the inactivity timeout
   const server = startServer(createRouter({ reconnectAfterInactivityMs: 50 }))
   const client = connect(server)
 
-  const subscription = client.events.subscribe({ topic: "a" }, {})
+  const subscription = client.events.subscribe({ topic: "a" }, { onData: () => {} })
   cleanups.push(() => subscription.unsubscribe())
 
   await until(() => server.openedStreams() === 2)
@@ -333,7 +333,7 @@ test("does not let a hanging subscription block the stream and further changes",
   let started = 0
 
   for (const subscription of [
-    client.hanging.subscribe(undefined, {}),
+    client.hanging.subscribe(undefined, { onData: () => {} }),
     client.events.subscribe(
       { topic: "a" },
       {
@@ -346,7 +346,7 @@ test("does not let a hanging subscription block the stream and further changes",
   }
   await until(() => started === 1)
 
-  const hanging = client.hanging.subscribe(undefined, {})
+  const hanging = client.hanging.subscribe(undefined, { onData: () => {} })
   cleanups.push(() => hanging.unsubscribe())
   await Bun.sleep(10)
   const added = client.events.subscribe(
@@ -375,7 +375,7 @@ test("releases a subscription whose event cannot be serialized", async () => {
   const client = connect(server)
   const cleanedUp = new Promise(resolve => server.emitter.once("cleaned-up", resolve))
 
-  const subscription = client.unserializable.subscribe(undefined, {})
+  const subscription = client.unserializable.subscribe(undefined, { onData: () => {} })
   cleanups.push(() => subscription.unsubscribe())
 
   await cleanedUp
