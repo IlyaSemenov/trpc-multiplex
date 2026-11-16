@@ -6,7 +6,11 @@ Multiplex multiple tRPC subscriptions over a single HTTP stream.
 
 Read [README.md](README.md) completely before changing the public API, package behavior, supported runtimes, or user documentation.
 
-Extend this guide only with stable, non-obvious conventions, architecture, contracts, workflows, and gotchas.
+Read the relevant guide in [development/](development/README.md) before starting:
+
+- [user-documentation.md](development/user-documentation.md) before changing user documentation.
+
+Extend this guide only with stable, non-obvious conventions, architecture, contracts, workflows, and gotchas that most changes need; put those of one topic in a guide in development/, and list the guide in its index and above with the task that needs it.
 Do not catalog files or restate information evident from their names and locations.
 
 ## Scope
