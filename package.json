@@ -35,7 +35,7 @@
   "scripts": {
     "build": "tsdown",
     "prepare": "lefthook install",
-    "types": "tsc && tsc -p tests/tsconfig.json && tsc -p e2e/tsconfig.json",
+    "types": "bun check && bun check -p tests && bun check -p e2e",
     "test": "bun test",
     "prepublishOnly": "bun run build",
     "lint": "oxlint --fix && oxfmt",
