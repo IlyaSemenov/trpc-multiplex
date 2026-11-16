@@ -23,6 +23,7 @@
     "dist"
   ],
   "type": "module",
+  "sideEffects": false,
   "exports": {
     "./client": "./dist/client.mjs",
     "./server": "./dist/server.mjs",
