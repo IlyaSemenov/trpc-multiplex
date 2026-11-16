@@ -115,6 +115,33 @@ New subscriptions start with the current cookies, but running ones keep the cont
 Restarted subscriptions start without their last `tracked()` event id, as new ones, so no cursor of the previous user is reused.
 Only the server can guarantee that a session ends: `restartSubscriptions()` does not reach a tab that is closed or hung, or a client of another browser.
 
+## Outside the browser
+
+To run clients outside the browser, e.g. many virtual users with their own cookies in one load test process, pass each client its own `fetch` and an absolute `url`:
+
+```ts
+import makeFetchCookie from "fetch-cookie"
+
+const fetchWithCookies = makeFetchCookie(fetch)
+
+const client = createTRPCClient<AppRouter>({
+  links: [
+    splitLink({
+      condition: op => op.type === "subscription",
+      true: multiplexLink({
+        url: "https://example.com/api/trpc-multiplex",
+        fetch: fetchWithCookies,
+      }),
+      false: httpBatchLink({ url: "https://example.com/api/trpc", fetch: fetchWithCookies }),
+    }),
+  ],
+})
+```
+
+- Use an absolute `url`: outside the browser there is no page to resolve a relative one against.
+- The link sends every request through `fetch`: the one that opens the stream and the ones that add and remove subscriptions.
+- Each client runs its subscriptions over a stream of its own and closes it once its last subscription ends.
+
 ## Behavior
 
 - Subscription events, `tracked()` ids, errors, and completion follow the semantics of `httpSubscriptionLink`.

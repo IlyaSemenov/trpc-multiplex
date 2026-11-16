@@ -163,12 +163,7 @@ export function createTabClient(opts: TabClientOptions) {
     workerFailed ||= mode === "worker"
     mode = "local"
 
-    const multiplexer = createMultiplexer({
-      url: opts.url,
-      retryDelayMs: opts.retryDelayMs,
-      requestTimeoutMs: opts.requestTimeoutMs,
-      restartId: readRestartId(),
-    })
+    const multiplexer = createMultiplexer({ ...opts, restartId: readRestartId() })
     const unsubscribes = new Map<string, () => void>()
     let channel: BroadcastChannel | undefined
 

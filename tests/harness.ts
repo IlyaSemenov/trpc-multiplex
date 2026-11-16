@@ -6,7 +6,11 @@ import { multiplexLink } from "trpc-multiplex/client"
 import type { MultiplexServerOptions } from "trpc-multiplex/server"
 import { createMultiplexServer } from "trpc-multiplex/server"
 
-/** Context of the test router: the user of the request that started the subscription. */
+/**
+ * Context of the test router: the user whose request started the subscription.
+ *
+ * The user comes from the `user` cookie of the request, falling back to the one set by `setUser`.
+ */
 export interface Context {
   user: string
 }
@@ -26,7 +30,7 @@ export interface TestServer {
   openedStreams: () => number
   /** Number of streams currently held open by the client. */
   activeStreams: () => number
-  /** Change the user of the context created for the following requests, as a login would. */
+  /** Change the user of the context created for the following requests without a `user` cookie, as a login would. */
   setUser: (user: string) => void
   /** Make the next `createContext` throw the error. */
   failNextContext: (error: unknown) => void
@@ -170,7 +174,7 @@ export function startServer(
             contextError = undefined
             throw error
           }
-          const ctx = { user }
+          const ctx = { user: readCookie(req, "user") ?? user }
           emitters.set(ctx, events)
           return ctx
         },
@@ -207,6 +211,14 @@ export function startServer(
       streams.forEach(drop => drop())
     },
   }
+}
+
+function readCookie(req: Request, name: string) {
+  return req.headers
+    .get("cookie")
+    ?.split(/;\s*/)
+    .find(cookie => cookie.startsWith(`${name}=`))
+    ?.slice(name.length + 1)
 }
 
 /** Proxy the stream so that a test can end it and observe when the client stops reading it. */

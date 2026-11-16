@@ -1,8 +1,11 @@
-import { afterEach, describe, expect, test } from "bun:test"
+import { afterEach, describe, expect, spyOn, test } from "bun:test"
 
+import { createTRPCClient } from "@trpc/client"
 import { TRPCError } from "@trpc/server"
+import { multiplexLink } from "trpc-multiplex/client"
 import { createMultiplexServer } from "trpc-multiplex/server"
 
+import type { Router } from "./harness"
 import { cleanups, connect, createRouter, startServer, until } from "./harness"
 
 afterEach(() => {
@@ -103,6 +106,150 @@ test("starts each added subscription with the context of its own request", async
     { user: "alice", payload: 1 },
     { user: "bob", payload: 2 },
   ])
+})
+
+describe("fetch option", () => {
+  test("sends the stream and every subscription change through it instead of the global fetch", async () => {
+    const server = startServer(createRouter())
+    const { fetch: globalFetch } = globalThis
+    const globalCalls = spyOn(globalThis, "fetch")
+    cleanups.push(() => globalCalls.mockRestore())
+    const requests: unknown[] = []
+    const client = createTRPCClient<Router>({
+      links: [
+        multiplexLink({
+          url: server.url,
+          // A plain function, so a call as a method of the options would show in `this`.
+          fetch: function (this: unknown, url, init) {
+            requests.push({
+              this: this,
+              url,
+              method: init.method,
+              body: JSON.parse(init.body as string),
+            })
+            return globalFetch(url, init)
+          },
+        }),
+      ],
+    })
+    let started = 0
+
+    const kept = client.events.subscribe({ topic: "a" }, { onStarted: () => started++ })
+    cleanups.push(() => kept.unsubscribe())
+    await until(() => started === 1)
+    const added = client.events.subscribe({ topic: "b" }, { onStarted: () => started++ })
+    await until(() => started === 2)
+    added.unsubscribe()
+    await until(() => requests.length === 3)
+
+    expect(requests).toEqual([
+      {
+        this: undefined,
+        url: server.url,
+        method: "POST",
+        body: { type: "open", subscriptions: [{ id: "1", path: "events", input: { topic: "a" } }] },
+      },
+      {
+        this: undefined,
+        url: server.url,
+        method: "POST",
+        body: {
+          type: "update",
+          connectionId: expect.any(String),
+          add: [{ id: "2", path: "events", input: { topic: "b" } }],
+          remove: [],
+        },
+      },
+      {
+        this: undefined,
+        url: server.url,
+        method: "POST",
+        body: { type: "update", connectionId: expect.any(String), add: [], remove: ["2"] },
+      },
+    ])
+    expect(globalCalls).not.toHaveBeenCalled()
+  })
+
+  test("uses the current global fetch for each request by default", async () => {
+    const server = startServer(createRouter())
+    const client = connect(server)
+    let started = 0
+
+    const kept = client.events.subscribe({ topic: "a" }, { onStarted: () => started++ })
+    cleanups.push(() => kept.unsubscribe())
+    await until(() => started === 1)
+    // Installed once the stream is open, so the update must not reuse the fetch of the open request.
+    const globalCalls = spyOn(globalThis, "fetch")
+    cleanups.push(() => globalCalls.mockRestore())
+    const added = client.events.subscribe({ topic: "b" }, { onStarted: () => started++ })
+    cleanups.push(() => added.unsubscribe())
+    await until(() => started === 2)
+
+    expect(globalCalls).toHaveBeenCalledTimes(1)
+  })
+
+  test("keeps the requests of each client with the cookie of its own fetch", async () => {
+    const server = startServer(createRouter())
+    server.setUser("anonymous")
+
+    function connectAs(user: string) {
+      const client = createTRPCClient<Router>({
+        links: [
+          multiplexLink({
+            url: server.url,
+            fetch: (url, init) => {
+              const headers = new Headers(init.headers)
+              headers.set("cookie", `user=${user}`)
+              return fetch(url, { ...init, headers })
+            },
+          }),
+        ],
+      })
+      const received: unknown[] = []
+      let started = 0
+
+      return {
+        received,
+        started: () => started,
+        subscribe: (topic: string) => {
+          const subscription = client.events.subscribe(
+            { topic },
+            {
+              onStarted: () => started++,
+              onData: data => received.push(data),
+            },
+          )
+          cleanups.push(() => subscription.unsubscribe())
+        },
+      }
+    }
+
+    const alice = connectAs("alice")
+    const bob = connectAs("bob")
+    // The first subscription opens the stream, the second one is added by an update request.
+    for (const [topic, count] of [
+      ["a", 1],
+      ["b", 2],
+    ] as const) {
+      alice.subscribe(topic)
+      bob.subscribe(topic)
+      await until(() => alice.started() === count && bob.started() === count)
+    }
+
+    server.emitter.emit("a", 1)
+    server.emitter.emit("b", 2)
+    await until(() => alice.received.length === 2 && bob.received.length === 2)
+
+    expect(alice.received).toEqual([
+      { user: "alice", payload: 1 },
+      { user: "alice", payload: 2 },
+    ])
+    expect(bob.received).toEqual([
+      { user: "bob", payload: 1 },
+      { user: "bob", payload: 2 },
+    ])
+    expect(server.openedStreams()).toBe(2)
+  })
 })
 
 test("closes the stream when the last subscription is removed", async () => {

@@ -30,6 +30,13 @@ export interface MultiplexTransportOptions {
    * @default 15000
    */
   requestTimeoutMs?: number
+  /**
+   * Function that sends every request to the multiplex endpoint: the one that opens the stream and the ones that change its subscriptions.
+   *
+   * Pass a cookie-aware `fetch` to give each client its own cookies outside the browser.
+   * @default the global `fetch` at the time of each request
+   */
+  fetch?: (url: string, init: RequestInit) => Promise<Response>
 }
 
 /**
@@ -456,7 +463,9 @@ export function createMultiplexer(opts: MultiplexerOptions): Multiplexer {
   }
 
   async function post(request: MultiplexRequest, signal?: AbortSignal) {
-    return await fetch(opts.url, {
+    // Resolved on every request, so a global `fetch` installed or stubbed later is used; called as a plain function, not a method of `opts`.
+    const send = opts.fetch ?? globalThis.fetch
+    return await send(opts.url, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(request),
