@@ -383,7 +383,11 @@ describe("multiplexLink with a worker", () => {
     const tracking = openTab(server, worker.factory)
     const trackedData: unknown[] = []
 
-    tracking.client.tracked.subscribe({}, { onData: ({ data }) => trackedData.push(data) })
+    const trackedSubscription = tracking.client.tracked.subscribe(
+      {},
+      { onData: ({ data }) => trackedData.push(data) },
+    )
+    cleanups.push(() => trackedSubscription.unsubscribe())
     await until(() => trackedData.length === 1)
     server.emitter.emit("tracked", "event-1")
     await until(() => trackedData.length === 2)
@@ -391,7 +395,8 @@ describe("multiplexLink with a worker", () => {
     // Another tab restarted while the worker was not listening.
     storage.set(RESTART_STORAGE_KEY, "restart-1")
     const late = openTab(server, worker.factory)
-    late.client.events.subscribe({ topic: "a" }, {})
+    const lateSubscription = late.client.events.subscribe({ topic: "a" }, { onData: () => {} })
+    cleanups.push(() => lateSubscription.unsubscribe())
 
     await until(() => trackedData.length === 3)
     expect(trackedData).toEqual([null, "event-1", null])
