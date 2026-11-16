@@ -68,8 +68,7 @@ export interface Multiplexer {
   /**
    * Start a subscription and return the function that removes it.
    *
-   * `restartId` is the restart the request's `lastEventId` belongs to; a different one means a restart was missed,
-   * so the subscription starts over and emits `restarted` first.
+   * `restartId` is the restart the request's `lastEventId` belongs to; a different one means a restart was missed, so the subscription starts over and emits `restarted` first.
    */
   subscribe: (
     request: TabSubscriptionRequest,

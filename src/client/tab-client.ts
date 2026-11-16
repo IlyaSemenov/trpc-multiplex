@@ -451,8 +451,7 @@ export function createTabClient(opts: TabClientOptions) {
   /**
    * Input of a subscription as the request body carries it: serialized by the transformer and copied through JSON.
    *
-   * The copy is a snapshot of the call, so resubscriptions send the original input even after the caller changes its objects,
-   * and it is plain data the tab can post to the worker even when the input holds reactive proxies or other objects that cannot be cloned.
+   * The copy is a snapshot of the call, so resubscriptions send the original input even after the caller changes its objects, and it is plain data the tab can post to the worker even when the input holds reactive proxies or other objects that cannot be cloned.
    */
   function encodeInput(input: unknown): unknown {
     const serialized = transformer.input.serialize(input)

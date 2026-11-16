@@ -16,8 +16,7 @@ export interface SubscriptionRequest {
  * Body of a POST request to the multiplex endpoint.
  *
  * `open` starts a new connection whose response is the event stream.
- * `update` changes the subscription set of an open connection; it runs with the context of its own request,
- * so a subscription always sees the current session, not the one the stream was opened with.
+ * `update` changes the subscription set of an open connection; it runs with the context of its own request, so a subscription always sees the current session, not the one the stream was opened with.
  */
 export type MultiplexRequest =
   | { type: "open"; subscriptions: SubscriptionRequest[] }

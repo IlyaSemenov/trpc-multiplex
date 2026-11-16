@@ -15,8 +15,7 @@ export type { MultiplexTransportOptions } from "./multiplexer"
 export type MultiplexLinkOptions<TRoot extends AnyClientTypes> = MultiplexTransportOptions &
   TransformerOptions<TRoot> & {
     /**
-     * Create the shared worker that runs the subscriptions of all tabs of the origin over a single stream,
-     * passing `name` to the `SharedWorker` constructor.
+     * Create the shared worker that runs the subscriptions of all tabs of the origin over a single stream, passing `name` to the `SharedWorker` constructor.
      *
      * Without it, or where the browser cannot run the worker, each tab runs its subscriptions over its own stream.
      */
@@ -29,12 +28,10 @@ export type MultiplexLinkOptions<TRoot extends AnyClientTypes> = MultiplexTransp
   }
 
 /**
- * Terminating link that runs all subscriptions of a tRPC client over a single HTTP stream,
- * or with `worker`, the subscriptions of all tabs of the origin over a single stream held by a shared worker.
+ * Terminating link that runs all subscriptions of a tRPC client over a single HTTP stream, or with `worker`, the subscriptions of all tabs of the origin over a single stream held by a shared worker.
  *
  * Use it for subscriptions only, e.g. as the `true` branch of `splitLink`.
- * Each change of the subscription set is a short request with the current cookies,
- * so the stream itself never needs to be reopened while it is alive.
+ * Each change of the subscription set is a short request with the current cookies, so the stream itself never needs to be reopened while it is alive.
  */
 export function multiplexLink<TInferrable extends InferrableClientTypes>(
   opts: MultiplexLinkOptions<inferClientTypes<TInferrable>>,

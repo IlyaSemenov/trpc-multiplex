@@ -18,8 +18,7 @@ export interface MultiplexServerOptions<TRouter extends AnyTRPCRouter> {
   /**
    * How long a request waits for its subscriptions to start before responding.
    *
-   * Waiting lets cookies set by middleware reach the response;
-   * the limit keeps a hanging procedure from blocking the stream and further subscription changes.
+   * Waiting lets cookies set by middleware reach the response; the limit keeps a hanging procedure from blocking the stream and further subscription changes.
    * @default 5000
    */
   startTimeoutMs?: number
@@ -81,8 +80,7 @@ type RequestContext<TContext> = { ok: true; ctx: TContext } | { ok: false; cause
  * Create a server that runs tRPC subscriptions of many client operations over a single HTTP stream.
  *
  * Open connections live in the memory of this server instance.
- * An `update` request that reaches another instance gets {@link UNKNOWN_CONNECTION_STATUS},
- * and the client reopens the stream with its whole subscription set.
+ * An `update` request that reaches another instance gets {@link UNKNOWN_CONNECTION_STATUS}, and the client reopens the stream with its whole subscription set.
  *
  * Keepalive pings and the client inactivity timeout come from the router `sse` config.
  */
@@ -296,8 +294,7 @@ export function createMultiplexServer<TRouter extends AnyTRPCRouter>(
       return new Response(null, { status: 405, headers: { allow: "POST" } })
     }
 
-    // A cross-origin page can send a credentialed `text/plain` POST without a preflight and attach
-    // a subscription with the victim's session to the attacker's stream; JSON requires a preflight.
+    // A cross-origin page can send a credentialed `text/plain` POST without a preflight and attach a subscription with the victim's session to the attacker's stream; JSON requires a preflight.
     if (
       req.headers.get("content-type")?.split(";")[0]?.trim().toLowerCase() !== "application/json"
     ) {
@@ -380,8 +377,7 @@ export function createMultiplexServer<TRouter extends AnyTRPCRouter>(
  * Wait for the next value unless the signal aborts first.
  *
  * A silent subscription never settles `next()`, so abort has to win on its own.
- * The abort listener is removed after every step: racing against one long-lived promise
- * would retain a reaction per event for the whole life of the subscription.
+ * The abort listener is removed after every step: racing against one long-lived promise would retain a reaction per event for the whole life of the subscription.
  */
 async function nextOrAbort<T>(iterator: AsyncIterator<T>, signal: AbortSignal) {
   if (signal.aborted) {
