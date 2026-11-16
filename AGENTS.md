@@ -60,7 +60,7 @@ Describe the user-visible change.
 
 - Briefly describe the user-observable change or new capability in the public contract, without implementation details or rationale.
   Prefer a single sentence.
-- Do not edit the package version or `CHANGELOG.md` by hand, and do not run `changeset version` or `changeset publish`; the release workflow consumes pending changesets.
+- Do not edit the package version or `CHANGELOG.md` by hand, and do not run `changeset version` or `changeset publish`; the maintainer releases pending changesets.
 
 ## Tests
 

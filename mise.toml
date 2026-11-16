@@ -4,3 +4,4 @@ lockfile = true
 [tools]
 bun = "1.4.4"
 lefthook = "latest"
+node = "26"
