@@ -44,23 +44,7 @@ Do not catalog files or restate information evident from their names and locatio
 
 ## Changesets
 
-- Add one `.changeset/*.md` file for each independently releasable user-visible change.
-- Do not add changesets for internal refactors, maintenance, tests, or documentation changes that do not require a package release.
-- Choose the SemVer bump from the public contract: `patch` for backward-compatible fixes and `minor` for backward-compatible functionality.
-- Before 1.0, use `minor` for breaking changes; starting with 1.0, use `major` and remove this rule.
-- Create `.changeset/<unique-name>.md` with this format:
-
-```markdown
----
-"trpc-multiplex": patch
----
-
-Describe the user-visible change.
-```
-
-- Briefly describe the user-observable change or new capability in the public contract, without implementation details or rationale.
-  Prefer a single sentence.
-- Do not edit the package version or `CHANGELOG.md` by hand, and do not run `changeset version` or `changeset publish`; the maintainer releases pending changesets.
+- Add changesets as [.changeset/README.md](.changeset/README.md) describes.
 
 ## Tests
 
