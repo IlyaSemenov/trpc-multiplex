@@ -42,7 +42,7 @@
     "lint": "oxlint --fix && oxfmt",
     "lint:check": "oxlint && oxfmt --check",
     "test:e2e": "bun run build && vite build --config e2e/app/vite.config.ts && playwright test",
-    "release": "changesets-local"
+    "release": "changesets-release"
   },
   "dependencies": {
     "valibot": "^1.0.0"
@@ -56,7 +56,7 @@
     "@trpc/server": "^11.28.3",
     "@tsconfig/bun": "^1.0.12",
     "@types/bun": "^1.4.4",
-    "changesets-local": "^1.6.0",
+    "changesets-release": "^2.1.1",
     "oxfmt": "^0.78.0",
     "oxlint": "^1.93.0",
     "publint": "^0.3.25",

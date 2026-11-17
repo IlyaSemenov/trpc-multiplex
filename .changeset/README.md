@@ -25,3 +25,11 @@ Describe the user-visible change.
   - Avoid: "Compare cache keys by the normalized path instead of the raw argument."
   - Prefer: "Fix stale results when the same file is passed through different relative paths."
 - Do not edit the package version or `CHANGELOG.md` by hand, and do not run `changeset version` or `changeset publish`; the maintainer releases pending changesets.
+
+## Releasing
+
+Run `bun run release` from the repository root on the base branch configured in `.changeset/config.json`, with committed changes pushed to GitHub.
+The command versions pending changesets, asks for confirmation, pushes the release commit, and starts `.github/workflows/publish.yml` after CI passes.
+The workflow publishes to npm with provenance, pushes tags, and creates GitHub Releases.
+
+Before releasing, configure an npm trusted publisher for `.github/workflows/publish.yml` and its `npm` environment for each published package.

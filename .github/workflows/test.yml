@@ -13,6 +13,9 @@ permissions:
 jobs:
   test:
     name: Test
+    # A release commit only versions a commit whose CI the release has waited for.
+    # A skipped job satisfies required status checks, unlike a skipped workflow.
+    if: ${{ !startsWith(github.event.head_commit.message, 'Release ') }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
@@ -23,7 +26,7 @@ jobs:
       - name: Setup mise
         uses: jdx/mise-action@v5
         with:
-          version: 2026.11.8
+          version: 2026.11.9
 
       - name: Install deps
         run: bun install --frozen-lockfile
